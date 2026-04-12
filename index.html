@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Saúde Leo">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>Monitor de Saúde — Leonardo (9 anos)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary: #0891b2;
+    --success: #16a34a;
+    --warning: #f59e0b;
+    --danger: #dc2626;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 20px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    padding: 24px 28px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 26px; margin-bottom: 4px; }
+  header p { opacity: 0.9; font-size: 14px; }
+  .header-actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .header-actions button {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .header-actions button:hover { background: rgba(255,255,255,0.3); }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--card);
+    padding: 6px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  .tab {
+    flex: 1;
+    min-width: 110px;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .tab:hover { background: var(--bg); color: var(--text); }
+  .tab.active { background: var(--primary); color: white; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    font-size: 18px;
+    margin-bottom: 14px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2 .icon { font-size: 22px; }
+  .card h3 { font-size: 15px; margin: 16px 0 10px; color: var(--text); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+  form { display: flex; flex-direction: column; gap: 10px; }
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .form-row > * { flex: 1; min-width: 120px; }
+  label { font-size: 12px; color: var(--muted); font-weight: 500; display: block; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: white;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  button.btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  button.btn:hover { background: var(--primary-dark); }
+  button.btn-secondary { background: #e2e8f0; color: var(--text); }
+  button.btn-secondary:hover { background: #cbd5e1; }
+  button.btn-danger { background: var(--danger); }
+  button.btn-danger:hover { background: #b91c1c; }
+  button.btn-sm { padding: 5px 10px; font-size: 12px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+  tr:hover td { background: #f8fafc; }
+  .empty { text-align: center; color: var(--muted); padding: 20px; font-size: 13px; font-style: italic; }
+  .stat-card {
+    background: white;
+    padding: 18px;
+    border-radius: var(--radius);
+    border-left: 4px solid var(--primary);
+    box-shadow: var(--shadow);
+  }
+  .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .stat-card .value { font-size: 26px; font-weight: 700; color: var(--text); margin: 4px 0; }
+  .stat-card .sub { font-size: 12px; color: var(--muted); }
+  .stat-card.peso { border-left-color: var(--primary); }
+  .stat-card.altura { border-left-color: var(--secondary); }
+  .stat-card.imc { border-left-color: #8b5cf6; }
+  .stat-card.gli { border-left-color: var(--warning); }
+  .stat-card.pa { border-left-color: var(--danger); }
+  .stat-card.ativ { border-left-color: var(--success); }
+  .ref-box {
+    background: #eff6ff;
+    border-left: 3px solid var(--primary);
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 12px;
+    color: #1e3a8a;
+  }
+  .ref-box strong { display: block; margin-bottom: 6px; color: var(--primary-dark); }
+  .ref-box ul { margin-left: 18px; margin-top: 4px; }
+  .ref-box li { margin: 2px 0; }
+  .chart-container { position: relative; height: 240px; margin-top: 10px; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-verde { background: #dcfce7; color: #166534; }
+  .badge-amarelo { background: #fef3c7; color: #854d0e; }
+  .badge-vermelho { background: #fee2e2; color: #991b1b; }
+  .badge-azul { background: #dbeafe; color: #1e40af; }
+  .actions-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; padding: 16px; }
+  /* Read-only mode (quando o código de edição não foi inserido) */
+  body.readonly form { display: none !important; }
+  body.readonly .card:has(form) { display: none !important; }
+  body.readonly .del-btn { display: none !important; }
+  body.readonly .ref-box.readonly-hidden { display: none !important; }
+  body.readonly .readonly-badge { display: inline-block !important; }
+  .readonly-badge { display: none; background: rgba(255,255,255,0.25); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 10px; letter-spacing: 0.3px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🩺 Monitor de Saúde — Leonardo <span class="readonly-badge">🔒 Modo visualização</span></h1>
+    <p>9 anos · Acompanhamento de peso, IMC, glicemia, pressão, medicação, atividade física e exames laboratoriais</p>
+    <div class="header-actions" style="display:flex">
+      <button id="unlockBtn" onclick="toggleEditMode()">🔓 Entrar em modo edição</button>
+      <button onclick="reloadFromServer()">🔄 Atualizar dados</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" onclick="showTab('dashboard', this)">📊 Resumo</button>
+    <button class="tab" onclick="showTab('antropometria', this)">⚖️ Peso & Altura</button>
+    <button class="tab" onclick="showTab('glicemia', this)">🩸 Glicemia</button>
+    <button class="tab" onclick="showTab('pressao', this)">❤️ Pressão</button>
+    <button class="tab" onclick="showTab('medicacao', this)">💊 Medicação</button>
+    <button class="tab" onclick="showTab('atividade', this)">🏃 Atividade física</button>
+    <button class="tab" onclick="showTab('exames', this)">🧪 Exames lab</button>
+    <button class="tab" onclick="showTab('analiseia', this)">🤖 Análise IA</button>
+    <button class="tab" onclick="showTab('referencias', this)">📘 Referências</button>
+  </nav>
+
+  <section id="dashboard" class="panel active">
+    <div class="card">
+      <h2><span class="icon">📊</span> Resumo geral — últimos valores</h2>
+      <div class="grid" id="statsGrid"></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">📈</span> Evolução do peso</h2>
+        <div class="chart-container"><canvas id="chartPesoResumo"></canvas></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">📉</span> Evolução do IMC</h2>
+        <div class="chart-container"><canvas id="chartImcResumo"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="antropometria" class="panel">
+    <div class="card">
+      <h2><span class="icon">⚖️</span> Registrar medida antropométrica</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Preencha apenas os campos que for registrar. O IMC é calculado quando peso e altura estiverem presentes.</p>
+      <form onsubmit="addAntropometria(event)">
+        <div class="form-row">
+          <div><label>Data</label><input type="date" id="antData" required></div>
+          <div><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="antPeso" placeholder="Ex: 32.5"></div>
+          <div><label>Altura (cm)</label><input type="number" step="0.1" min="0" id="antAltura" placeholder="Ex: 135"></div>
+          <div><label>Circunf. abdominal (cm)</label><input type="number" step="0.1" min="0" id="antCirc" placeholder="Ex: 70"></div>
+        </div>
+        <div><label>Observação (opcional)</label><input type="text" id="antObs" placeholder="Ex: consulta com pediatra"></div>
+        <div><button type="submit" class="btn">Registrar</button></div>
+      </form>
+      <div class="ref-box">
+        <strong>Referência OMS — meninos de 9 anos</strong>
+        <ul>
+          <li>Peso esperado (mediana): ~28 kg (faixa saudável ~24–34 kg)</li>
+          <li>Altura esperada (mediana): ~135 cm (faixa ~128–142 cm)</li>
+          <li>IMC normal: 13,7 – 17,9 kg/m² · Sobrepeso: 17,9 – 20,5 · Obesidade: > 20,5</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">📒</span> Histórico</h2>
+      <div id="antTable"></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><h2>Peso (kg)</h2><div class="chart-container"><canvas id="chartPeso"></canvas></div></div>
+      <div class="card"><h2>IMC (kg/m²)</h2><div class="chart-container"><canvas id="chartImc"></canvas></div></div>
+    </div>
+  </section>
+
+  <section id="glicemia" class="panel">
+    <div class="card">
+      <h2><span class="icon">🩸</span> Registrar glicemia</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Frequência sugerida: conforme orientação médica. Registre o contexto (jejum, pré/pós-refeição).</p>
+      <form onsubmit="addGlicemia(event)">
+        <div class="form-row">
+          <div><label>Data</label><input type="date" id="gliData" required></div>
+          <div><label>Hora</label><input type="time" id="gliHora" required></div>
+          <div><label>Valor (mg/dL)</label><input type="number" step="1" min="0" id="gliValor" required placeholder="Ex: 92"></div>
+          <div>
+            <label>Contexto</label>
+            <select id="gliContexto">
+              <option value="jejum">Jejum</option>
+              <option value="pre">Pré-refeição</option>
+              <option value="pos">Pós-refeição (2h)</option>
+              <option value="aleatoria">Aleatória</option>
+              <option value="antes_dormir">Antes de dormir</option>
+            </select>
+          </div>
+        </div>
+        <div><label>Observação</label><input type="text" id="gliObs" placeholder="Ex: almoço com massa"></div>
+        <div><button type="submit" class="btn">Registrar</button></div>
+      </form>
+      <div class="ref-box">
+        <strong>Referências — glicemia capilar (crianças)</strong>
+        <ul>
+          <li>Jejum normal: 70–99 mg/dL · Pré-diabetes: 100–125 · Diabetes: ≥ 126</li>
+          <li>Pós-prandial (2h) normal: &lt; 140 mg/dL</li>
+          <li>Aleatória com sintomas ≥ 200 mg/dL sugere diabetes</li>
+          <li>Hemoglobina glicada (HbA1c) alvo normal: &lt; 5,7%</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">📒</span> Histórico de glicemia</h2>
+      <div id="gliTable"></div>
+    </div>
+    <div class="card"><h2>Evolução</h2><div class="chart-container"><canvas id="chartGli"></canvas></div></div>
+  </section>
+
+  <section id="pressao" class="panel">
+    <div class="card">
+      <h2><span class="icon">❤️</span> Registrar pressão arterial</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Frequência sugerida: semanal ou conforme orientação médica. Meça após 5 min de repouso.</p>
+      <form onsubmit="addPressao(event)">
+        <div class="form-row">
+          <div><label>Data</label><input type="date" id="paData" required></div>
+          <div><label>Hora</label><input type="time" id="paHora" required></div>
+          <div><label>Sistólica (mmHg)</label><input type="number" step="1" min="0" id="paSis" required placeholder="Ex: 105"></div>
+          <div><label>Diastólica (mmHg)</label><input type="number" step="1" min="0" id="paDia" required placeholder="Ex: 65"></div>
+          <div><label>FC (bpm)</label><input type="number" step="1" min="0" id="paFc" placeholder="Opcional"></div>
+        </div>
+        <div><label>Observação</label><input type="text" id="paObs" placeholder="Ex: após atividade"></div>
+        <div><button type="submit" class="btn">Registrar</button></div>
+      </form>
+      <div class="ref-box">
+        <strong>Referências — PA em meninos de 9 anos (altura média, AAP 2017)</strong>
+        <ul>
+          <li>Normal: &lt; 108 / 72 mmHg (percentil 90)</li>
+          <li>PA elevada: 108–115 / 72–78 mmHg</li>
+          <li>Hipertensão estágio 1: ≥ 115 / 78 mmHg</li>
+          <li>Hipertensão estágio 2: ≥ 127 / 86 mmHg</li>
+          <li>FC normal em repouso: 70–110 bpm</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">📒</span> Histórico</h2>
+      <div id="paTable"></div>
+    </div>
+    <div class="card"><h2>Evolução da pressão</h2><div class="chart-container"><canvas id="chartPa"></canvas></div></div>
+  </section>
+
+  <section id="medicacao" class="panel">
+    <div class="card">
+      <h2><span class="icon">💊</span> Cadastrar medicação</h2>
+      <form onsubmit="addMedicacao(event)">
+        <div class="form-row">
+          <div><label>Nome do medicamento</label><input type="text" id="medNome" required placeholder="Ex: Metformina"></div>
+          <div><label>Dose</label><input type="text" id="medDose" required placeholder="Ex: 500 mg"></div>
+          <div><label>Frequência</label><input type="text" id="medFreq" required placeholder="Ex: 1x ao dia"></div>
+        </div>
+        <div class="form-row">
+          <div><label>Início</label><input type="date" id="medInicio"></div>
+          <div><label>Término previsto</label><input type="date" id="medFim"></div>
+          <div><label>Prescrito por</label><input type="text" id="medMedico" placeholder="Ex: Dr. Silva"></div>
+        </div>
+        <div><label>Observações</label><textarea id="medObs" placeholder="Indicação, efeitos colaterais, horário específico..."></textarea></div>
+        <div><button type="submit" class="btn">Cadastrar</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2><span class="icon">📒</span> Medicações ativas e histórico</h2>
+      <div id="medTable"></div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">✅</span> Registro diário de administração</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Confirme quando uma dose foi administrada.</p>
+      <form onsubmit="addDoseRegistro(event)">
+        <div class="form-row">
+          <div><label>Data</label><input type="date" id="doseData" required></div>
+          <div><label>Hora</label><input type="time" id="doseHora" required></div>
+          <div><label>Medicamento</label><select id="doseMed" required></select></div>
+        </div>
+        <div><label>Observação</label><input type="text" id="doseObs" placeholder="Ex: com o café da manhã"></div>
+        <div><button type="submit" class="btn">Registrar dose</button></div>
+      </form>
+      <div id="doseTable" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <section id="atividade" class="panel">
+    <div class="card">
+      <h2><span class="icon">🏃</span> Registrar atividade física</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">OMS recomenda ≥ 60 min/dia de atividade moderada a vigorosa para crianças 5–17 anos.</p>
+      <form onsubmit="addAtividade(event)">
+        <div class="form-row">
+          <div><label>Data</label><input type="date" id="ativData" required></div>
+          <div>
+            <label>Tipo</label>
+            <select id="ativTipo">
+              <option>Futebol</option>
+              <option>Natação</option>
+              <option>Ciclismo</option>
+              <option>Corrida</option>
+              <option>Caminhada</option>
+              <option>Educação física</option>
+              <option>Brincadeira ativa</option>
+              <option>Dança</option>
+              <option>Outro</option>
+            </select>
+          </div>
+          <div><label>Duração (min)</label><input type="number" min="0" step="1" id="ativDuracao" required placeholder="Ex: 45"></div>
+          <div>
+            <label>Intensidade</label>
+            <select id="ativIntens">
+              <option>Leve</option>
+              <option>Moderada</option>
+              <option>Vigorosa</option>
+            </select>
+          </div>
+        </div>
+        <div><label>Observação</label><input type="text" id="ativObs" placeholder="Ex: treino de escolinha"></div>
+        <div><button type="submit" class="btn">Registrar</button></div>
+      </form>
+      <div class="ref-box">
+        <strong>Meta OMS para crianças de 5–17 anos</strong>
+        <ul>
+          <li>≥ 60 minutos de atividade física moderada a vigorosa por dia</li>
+          <li>Incluir atividades de fortalecimento muscular e ósseo ≥ 3x/semana</li>
+          <li>Limitar tempo sedentário (telas recreativas) a &lt; 2h/dia</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">📒</span> Histórico de atividades</h2>
+      <div id="ativTable"></div>
+    </div>
+    <div class="card"><h2>Minutos por dia (últimos 30)</h2><div class="chart-container"><canvas id="chartAtiv"></canvas></div></div>
+  </section>
+
+  <section id="exames" class="panel">
+    <div class="card">
+      <h2><span class="icon">🧪</span> Exames laboratoriais</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Resultados laboratoriais agrupados por categoria. Status calculado a partir das referências do laudo — sempre confirme a interpretação com o pediatra/endocrinologista.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--muted)">
+        <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a"></span>Normal</span>
+        <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b"></span>Atenção</span>
+        <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc2626"></span>Alterado</span>
+      </div>
+      <div id="examesContainer"></div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">➕</span> Adicionar novo resultado de exame</h2>
+      <form id="formExame" onsubmit="addExame(event)">
+        <div class="grid grid-3">
+          <div class="field"><label>Data da coleta</label><input type="date" name="data" required></div>
+          <div class="field"><label>Categoria</label>
+            <select name="categoria" required>
+              <option value="Metabolismo glicídico">Metabolismo glicídico</option>
+              <option value="Perfil lipídico">Perfil lipídico</option>
+              <option value="Função hepática">Função hepática</option>
+              <option value="Função renal">Função renal</option>
+              <option value="Tireoide / hipófise">Tireoide / hipófise</option>
+              <option value="Eixo adrenal/gonadal">Eixo adrenal/gonadal</option>
+              <option value="Hemograma">Hemograma</option>
+              <option value="Vitaminas e minerais">Vitaminas e minerais</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+          <div class="field"><label>Status</label>
+            <select name="status">
+              <option value="normal">Normal</option>
+              <option value="atencao">Atenção</option>
+              <option value="alterado">Alterado</option>
+            </select>
+          </div>
+          <div class="field"><label>Nome do exame</label><input type="text" name="nome" required placeholder="Ex.: Hemoglobina glicada"></div>
+          <div class="field"><label>Valor</label><input type="text" name="valor" required placeholder="Ex.: 5,2"></div>
+          <div class="field"><label>Unidade</label><input type="text" name="unidade" placeholder="Ex.: %"></div>
+          <div class="field" style="grid-column:1/-1"><label>Referência</label><input type="text" name="ref" placeholder="Ex.: < 5,7"></div>
+          <div class="field" style="grid-column:1/-1"><label>Observações</label><input type="text" name="obs"></div>
+        </div>
+        <div style="margin-top:12px"><button type="submit" class="btn">Registrar exame</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section id="analiseia" class="panel">
+    <div class="card">
+      <h2><span class="icon">🤖</span> Análise por Inteligência Artificial</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Este recurso gera um <strong>relatório estruturado</strong> com todos os dados registrados do Leonardo e um
+        <strong>prompt pronto</strong> para você colar em uma IA (Claude, ChatGPT, Gemini) e receber uma
+        análise pediátrica detalhada: se os valores estão adequados para uma criança de 9 anos com obesidade e
+        suspeita de esteatose hepática, possíveis pontos de atenção e sugestões de perguntas para o médico.
+      </p>
+
+      <div class="ref-box" style="background:#fef3c7;border-left-color:#f59e0b;color:#854d0e;">
+        <strong>⚠️ Importante — limites da análise por IA</strong>
+        <ul>
+          <li>A análise é apenas <strong>informativa e educacional</strong>.</li>
+          <li><strong>Não substitui consulta médica</strong> com pediatra, endocrinologista ou hepatologista pediátrico.</li>
+          <li>Sempre valide qualquer informação com o médico do Leonardo antes de tomar decisões sobre medicação, dieta ou exercícios.</li>
+          <li>Os dados ficam no seu dispositivo — nada é enviado automaticamente a nenhum servidor.</li>
+        </ul>
+      </div>
+
+      <div class="form-row" style="margin-top:16px">
+        <div>
+          <label>Período da análise</label>
+          <select id="iaPeriodo">
+            <option value="30">Últimos 30 dias</option>
+            <option value="60">Últimos 60 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="180">Últimos 6 meses</option>
+            <option value="365">Último ano</option>
+            <option value="9999" selected>Todos os registros</option>
+          </select>
+        </div>
+        <div>
+          <label>Foco da análise</label>
+          <select id="iaFoco">
+            <option value="geral">Geral (todos os indicadores)</option>
+            <option value="peso">Peso, IMC e esteatose hepática</option>
+            <option value="glicemia">Glicemia e risco de diabetes</option>
+            <option value="pressao">Pressão arterial</option>
+            <option value="atividade">Atividade física e estilo de vida</option>
+          </select>
+        </div>
+      </div>
+      <div><label>Observação extra (opcional)</label><input type="text" id="iaObs" placeholder="Ex: teve infecção recente, mudou a dieta na última semana..."></div>
+
+      <div class="actions-row">
+        <button class="btn" onclick="gerarAnalise()">🪄 Gerar relatório e prompt</button>
+        <button class="btn btn-secondary" onclick="copiarAnalise()">📋 Copiar para colar no Claude/ChatGPT</button>
+        <button class="btn btn-secondary" onclick="baixarAnalise()">💾 Baixar como .txt</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon">📄</span> Relatório gerado</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">
+        Clique em "Gerar relatório e prompt" acima. Depois copie o texto abaixo e cole em
+        <a href="https://claude.ai" target="_blank" rel="noopener">Claude.ai</a>,
+        <a href="https://chat.openai.com" target="_blank" rel="noopener">ChatGPT</a> ou
+        <a href="https://gemini.google.com" target="_blank" rel="noopener">Gemini</a>.
+      </p>
+      <textarea id="iaOutput" rows="22" style="font-family:'Courier New',monospace;font-size:12px;white-space:pre" placeholder="O relatório aparecerá aqui depois de clicar em 'Gerar relatório e prompt'..."></textarea>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon">💡</span> Sugestões de perguntas para a IA</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">
+        Depois de colar o relatório, você pode fazer perguntas específicas como:
+      </p>
+      <ul style="font-size:13px;margin-left:20px;color:var(--text);line-height:1.8">
+        <li>Os valores de peso e IMC estão dentro da faixa esperada para um menino de 9 anos?</li>
+        <li>A tendência do IMC nas últimas semanas é de melhora ou piora?</li>
+        <li>Há sinais nos dados que indiquem necessidade de exames complementares (ALT, AST, HOMA-IR, HbA1c)?</li>
+        <li>As glicemias registradas são compatíveis com pré-diabetes ou diabetes?</li>
+        <li>O volume de atividade física está adequado para o objetivo de redução de peso?</li>
+        <li>Que perguntas eu deveria fazer na próxima consulta com o pediatra?</li>
+        <li>Sugestões de metas realistas de peso/IMC para os próximos 3 meses?</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="referencias" class="panel">
+    <div class="card">
+      <h2><span class="icon">📘</span> Guia rápido de referências pediátricas</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Valores orientativos para acompanhamento de uma criança de 9 anos. <strong>Não substituem avaliação médica.</strong></p>
+      <h3>⚖️ Antropometria (meninos, 9 anos)</h3>
+      <table>
+        <thead><tr><th>Medida</th><th>Faixa saudável</th><th>Atenção</th></tr></thead>
+        <tbody>
+          <tr><td>Peso (mediana OMS)</td><td>~28 kg (24–34 kg)</td><td>&gt; 38 kg</td></tr>
+          <tr><td>Altura (mediana OMS)</td><td>~135 cm (128–142 cm)</td><td>&lt; 124 cm</td></tr>
+          <tr><td>IMC</td><td>13,7 – 17,9 kg/m²</td><td>≥ 17,9 sobrepeso · ≥ 20,5 obesidade</td></tr>
+          <tr><td>Circunferência abdominal</td><td>&lt; percentil 90 para idade</td><td>Aumentada: risco de esteatose</td></tr>
+        </tbody>
+      </table>
+
+      <h3>🩸 Glicemia</h3>
+      <table>
+        <thead><tr><th>Contexto</th><th>Normal</th><th>Pré-diabetes</th><th>Diabetes</th></tr></thead>
+        <tbody>
+          <tr><td>Jejum</td><td>70–99 mg/dL</td><td>100–125</td><td>≥ 126</td></tr>
+          <tr><td>Pós-prandial 2h</td><td>&lt; 140 mg/dL</td><td>140–199</td><td>≥ 200</td></tr>
+          <tr><td>HbA1c</td><td>&lt; 5,7%</td><td>5,7–6,4%</td><td>≥ 6,5%</td></tr>
+        </tbody>
+      </table>
+
+      <h3>❤️ Pressão arterial (menino 9 anos, altura média — AAP 2017)</h3>
+      <table>
+        <thead><tr><th>Classificação</th><th>Sistólica</th><th>Diastólica</th></tr></thead>
+        <tbody>
+          <tr><td>Normal</td><td>&lt; 108 mmHg</td><td>&lt; 72 mmHg</td></tr>
+          <tr><td>PA elevada</td><td>108–114</td><td>72–77</td></tr>
+          <tr><td>Hipertensão estágio 1</td><td>115–126</td><td>78–85</td></tr>
+          <tr><td>Hipertensão estágio 2</td><td>≥ 127</td><td>≥ 86</td></tr>
+        </tbody>
+      </table>
+
+      <h3>🫀 Esteatose hepática infantil — pontos de atenção</h3>
+      <div class="ref-box">
+        <ul>
+          <li>Principal intervenção: <strong>redução gradual de peso</strong> (5–10% do peso total), dieta equilibrada e atividade física regular.</li>
+          <li>Reduzir: açúcar, bebidas açucaradas, frituras, ultraprocessados, excesso de carboidratos refinados.</li>
+          <li>Priorizar: frutas, verduras, proteína magra, grãos integrais, ômega-3 (peixes).</li>
+          <li>Exames de acompanhamento habituais: ALT (TGP), AST (TGO), GGT, colesterol total e frações, triglicerídeos, glicemia, insulina, HOMA-IR.</li>
+          <li>Acompanhamento regular com pediatra e/ou hepatologista/endocrinologista pediátrico.</li>
+        </ul>
+      </div>
+
+      <h3>💊 Medicação — boas práticas</h3>
+      <div class="ref-box">
+        <ul>
+          <li>Sempre confirmar dose em mg/kg/dia conforme peso atual.</li>
+          <li>Nunca suspender medicação por conta própria.</li>
+          <li>Registrar horários, faltas e efeitos colaterais para relatar ao médico.</li>
+        </ul>
+      </div>
+
+      <h3>🏃 Atividade física</h3>
+      <div class="ref-box">
+        <ul>
+          <li>≥ 60 min/dia de atividade moderada a vigorosa (OMS).</li>
+          <li>Atividades que envolvam fortalecimento muscular e ósseo pelo menos 3x/semana.</li>
+          <li>Para crianças com sobrepeso, começar com atividades de baixo impacto (natação, caminhada, ciclismo) e progredir gradualmente.</li>
+        </ul>
+      </div>
+
+      <p style="color:var(--muted);font-size:12px;margin-top:18px;font-style:italic">
+        Fontes: Organização Mundial da Saúde (OMS) — curvas de crescimento e recomendações de atividade física;
+        American Academy of Pediatrics (AAP) 2017 — Clinical Practice Guideline for Screening and Management of High Blood Pressure in Children;
+        Sociedade Brasileira de Pediatria — diretrizes de diabetes e esteatose hepática não alcoólica.
+      </p>
+    </div>
+  </section>
+
+  <footer id="footerText">
+    Os dados são armazenados em servidor seguro (Supabase) e sincronizados entre todos que acessam este link. Novos registros só podem ser adicionados em modo edição (mediante código). Confidencial — uso familiar e médico.
+  </footer>
+</div>
+
+<script>
+// ===== Configuração do Supabase =====
+const SUPABASE_URL = 'https://qwlegnebejakwwuntyrd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3bGVnbmViZWpha3d3dW50eXJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTUxODYsImV4cCI6MjA5MTI3MTE4Nn0.lkYjF5xXwS_XW8Wi-p0YBBOxY7Bjs_HDw7PIWDTcPYQ';
+const SUPA = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Código de edição — em memória após desbloqueio
+let EDIT_CODE = null;
+function isEditMode() { return !!EDIT_CODE; }
+
+let db = {
+  antropometria: [],
+  glicemia: [],
+  pressao: [],
+  medicacao: [],
+  doses: [],
+  atividade: [],
+  exames: []
+};
+
+// Carrega todos os dados do Supabase de uma vez (RPC otimizada)
+async function loadDb() {
+  try {
+    const { data, error } = await SUPA.rpc('leonardo_get_all');
+    if (error) throw error;
+    db = {
+      antropometria: (data.antropometria || []).map(r => ({
+        ...r,
+        peso: parseFloat(r.peso), altura: parseFloat(r.altura),
+        circ: r.circ != null ? parseFloat(r.circ) : null,
+        imc: parseFloat(r.imc)
+      })),
+      glicemia: (data.glicemia || []).map(r => ({ ...r, valor: parseInt(r.valor) })),
+      pressao: (data.pressao || []).map(r => ({ ...r, sis: parseInt(r.sis), dia: parseInt(r.dia), fc: r.fc != null ? parseInt(r.fc) : null })),
+      medicacao: data.medicacao || [],
+      atividade: (data.atividade || []).map(r => ({ ...r, duracao: parseInt(r.duracao) })),
+      exames: data.exames || [],
+      doses: (data.doses || []).map(r => ({ ...r, medId: r.med_id }))
+    };
+  } catch (e) {
+    console.error('Falha ao carregar do Supabase:', e);
+    alert('Nao foi possivel carregar os dados do servidor: ' + (e.message || e));
+  }
+}
+function saveDb() { /* no-op: persistência agora é via Supabase RPCs */ }
+
+// Helper: pede o código de edição ao usuário (se ainda não tiver)
+async function requireEditCode() {
+  if (EDIT_CODE) return EDIT_CODE;
+  const code = prompt('Digite o código de edição para registrar novos dados:');
+  if (!code) return null;
+  try {
+    const { data, error } = await SUPA.rpc('leonardo_check_code', { p_code: code });
+    if (error) throw error;
+    if (!data) { alert('Código inválido.'); return null; }
+    EDIT_CODE = code;
+    document.body.classList.remove('readonly');
+    const btn = document.getElementById('unlockBtn');
+    if (btn) btn.textContent = '🔒 Sair do modo edição';
+    return EDIT_CODE;
+  } catch (e) {
+    alert('Erro ao verificar código: ' + (e.message || e));
+    return null;
+  }
+}
+function lockEditMode() {
+  EDIT_CODE = null;
+  document.body.classList.add('readonly');
+  const btn = document.getElementById('unlockBtn');
+  if (btn) btn.textContent = '🔓 Entrar em modo edição';
+}
+async function toggleEditMode() {
+  if (isEditMode()) { lockEditMode(); }
+  else { await requireEditCode(); }
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'monitor-leonardo-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+async function reloadFromServer() {
+  await loadDb();
+  renderAll();
+}
+async function deleteRecord(tabela, id) {
+  const code = await requireEditCode();
+  if (!code) return false;
+  if (!confirm('Excluir este registro?')) return false;
+  try {
+    const { error } = await SUPA.rpc('leonardo_delete', { p_code: code, p_table: tabela, p_id: id });
+    if (error) throw error;
+    await reloadFromServer();
+    return true;
+  } catch (e) {
+    alert('Erro ao excluir: ' + (e.message || e));
+    return false;
+  }
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const parts = d.split('-');
+  return parts[2] + '/' + parts[1] + '/' + parts[0];
+}
+function calcImc(peso, alturaCm) {
+  const m = alturaCm / 100;
+  return peso / (m * m);
+}
+function classificarImc(imc) {
+  if (imc < 13.7) return {label:'Baixo peso', cls:'badge-azul'};
+  if (imc < 17.9) return {label:'Normal', cls:'badge-verde'};
+  if (imc < 20.5) return {label:'Sobrepeso', cls:'badge-amarelo'};
+  return {label:'Obesidade', cls:'badge-vermelho'};
+}
+function classificarGli(valor, contexto) {
+  if (contexto === 'jejum') {
+    if (valor < 70) return {label:'Hipoglicemia', cls:'badge-vermelho'};
+    if (valor <= 99) return {label:'Normal', cls:'badge-verde'};
+    if (valor <= 125) return {label:'Pre-diabetes', cls:'badge-amarelo'};
+    return {label:'Diabetes', cls:'badge-vermelho'};
+  }
+  if (contexto === 'pos') {
+    if (valor < 140) return {label:'Normal', cls:'badge-verde'};
+    if (valor < 200) return {label:'Alterada', cls:'badge-amarelo'};
+    return {label:'Diabetes', cls:'badge-vermelho'};
+  }
+  if (valor < 70) return {label:'Hipoglicemia', cls:'badge-vermelho'};
+  if (valor < 140) return {label:'Normal', cls:'badge-verde'};
+  if (valor < 200) return {label:'Alterada', cls:'badge-amarelo'};
+  return {label:'Alta', cls:'badge-vermelho'};
+}
+function classificarPa(sis, dia) {
+  if (sis < 108 && dia < 72) return {label:'Normal', cls:'badge-verde'};
+  if (sis < 115 && dia < 78) return {label:'Elevada', cls:'badge-amarelo'};
+  if (sis < 127 && dia < 86) return {label:'HA estagio 1', cls:'badge-vermelho'};
+  return {label:'HA estagio 2', cls:'badge-vermelho'};
+}
+
+async function addAntropometria(ev) {
+  ev.preventDefault();
+  const code = await requireEditCode();
+  if (!code) return;
+  const pesoVal = document.getElementById('antPeso').value;
+  const alturaVal = document.getElementById('antAltura').value;
+  const circVal = document.getElementById('antCirc').value;
+  if (!pesoVal && !alturaVal && !circVal) { alert('Preencha pelo menos um campo (peso, altura ou circunferência).'); return; }
+  const peso = pesoVal ? parseFloat(pesoVal) : null;
+  const altura = alturaVal ? parseFloat(alturaVal) : null;
+  try {
+    const { error } = await SUPA.rpc('leonardo_add_antropometria', {
+      p_code: code,
+      p_data: document.getElementById('antData').value,
+      p_peso: peso,
+      p_altura: altura,
+      p_circ: circVal ? parseFloat(circVal) : null,
+      p_obs: document.getElementById('antObs').value || null
+    });
+    if (error) throw error;
+    ev.target.reset();
+    setDefaultDates();
+    await reloadFromServer();
+  } catch (e) { alert('Erro: ' + (e.message || e)); }
+}
+async function delAntropometria(id) { await deleteRecord('antropometria', id); }
+
+function renderAntropometria() {
+  const el = document.getElementById('antTable');
+  if (!db.antropometria.length) { el.innerHTML = '<div class="empty">Nenhum registro ainda.</div>'; return; }
+  const rows = db.antropometria.slice().reverse().map(r => {
+    const pesoTxt = r.peso != null ? r.peso.toFixed(1) + ' kg' : '-';
+    const alturaTxt = r.altura != null ? r.altura.toFixed(1) + ' cm' : '-';
+    let imcTxt = '-';
+    if (r.imc != null) {
+      const c = classificarImc(r.imc);
+      imcTxt = r.imc.toFixed(1) + ' <span class="badge ' + c.cls + '">' + c.label + '</span>';
+    } else if (r.peso != null && r.altura != null && r.altura > 0) {
+      const imc = r.peso / ((r.altura/100) ** 2);
+      const c = classificarImc(imc);
+      imcTxt = imc.toFixed(1) + ' <span class="badge ' + c.cls + '">' + c.label + '</span>';
+    }
+    return '<tr>' +
+      '<td>' + fmtDate(r.data) + '</td>' +
+      '<td>' + pesoTxt + '</td>' +
+      '<td>' + alturaTxt + '</td>' +
+      '<td>' + imcTxt + '</td>' +
+      '<td>' + (r.circ ? r.circ.toFixed(1) + ' cm' : '-') + '</td>' +
+      '<td>' + (r.obs||'') + '</td>' +
+      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delAntropometria(' + r.id + ')">Excluir</button></td>' +
+    '</tr>';
+  }).join('');
+  el.innerHTML = '<table><thead><tr><th>Data</th><th>Peso</th><th>Altura</th><th>IMC</th><th>Circ. abd.</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+async function addGlicemia(ev) {
+  ev.preventDefault();
+  const code = await requireEditCode();
+  if (!code) return;
+  try {
+    const { error } = await SUPA.rpc('leonardo_add_glicemia', {
+      p_code: code,
+      p_data: document.getElementById('gliData').value,
+      p_hora: document.getElementById('gliHora').value,
+      p_valor: parseInt(document.getElementById('gliValor').value),
+      p_contexto: document.getElementById('gliContexto').value,
+      p_obs: document.getElementById('gliObs').value || null
+    });
+    if (error) throw error;
+    ev.target.reset();
+    setDefaultDates();
+    await reloadFromServer();
+  } catch (e) { alert('Erro: ' + (e.message || e)); }
+}
+async function delGlicemia(id) { await deleteRecord('glicemia', id); }
+
+function renderGlicemia() {
+  const el = document.getElementById('gliTable');
+  if (!db.glicemia.length) { el.innerHTML = '<div class="empty">Nenhum registro ainda.</div>'; return; }
+  const ctxLabels = {jejum:'Jejum',pre:'Pre-refeicao',pos:'Pos-refeicao',aleatoria:'Aleatoria',antes_dormir:'Antes de dormir'};
+  const rows = db.glicemia.slice().reverse().map(r => {
+    const c = classificarGli(r.valor, r.contexto);
+    return '<tr>' +
+      '<td>' + fmtDate(r.data) + ' ' + (r.hora||'').slice(0,5) + '</td>' +
+      '<td>' + r.valor + ' mg/dL</td>' +
+      '<td>' + (ctxLabels[r.contexto]||r.contexto) + '</td>' +
+      '<td><span class="badge ' + c.cls + '">' + c.label + '</span></td>' +
+      '<td>' + (r.obs||'') + '</td>' +
+      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delGlicemia(' + r.id + ')">Excluir</button></td>' +
+    '</tr>';
+  }).join('');
+  el.innerHTML = '<table><thead><tr><th>Data/Hora</th><th>Valor</th><th>Contexto</th><th>Status</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+async function addPressao(ev) {
+  ev.preventDefault();
+  const code = await requireEditCode();
+  if (!code) return;
+  try {
+    const { error } = await SUPA.rpc('leonardo_add_pressao', {
+      p_code: code,
+      p_data: document.getElementById('paData').value,
+      p_hora: document.getElementById('paHora').value,
+      p_sis: parseInt(document.getElementById('paSis').value),
+      p_dia: parseInt(document.getElementById('paDia').value),
+      p_fc: parseInt(document.getElementById('paFc').value) || null,
+      p_obs: document.getElementById('paObs').value || null
+    });
+    if (error) throw error;
+    ev.target.reset();
+    setDefaultDates();
+    await reloadFromServer();
+  } catch (e) { alert('Erro: ' + (e.message || e)); }
+}
+async function delPressao(id) { await deleteRecord('pressao', id); }
+
+function renderPressao() {
+  const el = document.getElementById('paTable');
+  if (!db.pressao.length) { el.innerHTML = '<div class="empty">Nenhum registro ainda.</div>'; return; }
+  const rows = db.pressao.slice().reverse().map(r => {
+    const c = classificarPa(r.sis, r.dia);
+    return '<tr>' +
+      '<td>' + fmtDate(r.data) + ' ' + (r.hora||'').slice(0,5) + '</td>' +
+      '<td>' + r.sis + '/' + r.dia + ' mmHg</td>' +
+      '<td>' + (r.fc ? r.fc + ' bpm' : '-') + '</td>' +
+      '<td><span class="badge ' + c.cls + '">' + c.label + '</span></td>' +
+      '<td>' + (r.obs||'') + '</td>' +
+      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delPressao(' + r.id + ')">Excluir</button></td>' +
+    '</tr>';
+  }).join('');
+  el.innerHTML = '<table><thead><tr><th>Data/Hora</th><th>PA</th><th>FC</th><th>Status</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+async function addMedicacao(ev) {
+  ev.preventDefault();
+  const code = await requireEditCode();
+  if (!code) return;
+  try {
+    const { error } = await SUPA.rpc('leonardo_add_medicacao', {
+      p_code: code,
+      p_nome: document.getElementById('medNome').value,
+      p_dose: document.getElementById('medDose').value || null,
+      p_freq: document.getElementById('medFreq').value || null,
+      p_inicio: document.getElementById('medInicio').value || null,
+      p_fim: document.getElementById('medFim').value || null,
+      p_medico: document.getElementById('medMedico').value || null,
+      p_obs: document.getElementById('medObs').value || null
+    });
+    if (error) throw error;
+    ev.target.reset();
+    await reloadFromServer();
+  } catch (e) { alert('Erro: ' + (e.message || e)); }
+}
+async function delMedicacao(id) { await deleteRecord('medicacao', id); }
+
+function renderMedicacao() {
+  const el = document.getElementById('medTable');
+  if (!db.medicacao.length) {
+    el.innerHTML = '<div class="empty">Nenhuma medicacao cadastrada.</div>';
+  } else {
+    const rows = db.medicacao.map(r => '<tr>' +
+      '<td><strong>' + r.nome + '</strong></td>' +
+      '<td>' + r.dose + '</td>' +
+      '<td>' + r.freq + '</td>' +
+      '<td>' + (r.inicio ? fmtDate(r.inicio) : '-') + '</td>' +
+      '<td>' + (r.fim ? fmtDate(r.fim) : '-') + '</td>' +
+      '<td>' + (r.medico||'') + '</td>' +
+      '<td>' + (r.obs||'') + '</td>' +
+      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delMedicacao(' + r.id + ')">Excluir</button></td>' +
+    '</tr>').join('');
+    el.innerHTML = '<table><thead><tr><th>Medicamento</th><th>Dose</th><th>Frequencia</th><th>Inicio</th><th>Termino</th><th>Medico</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  const sel = document.getElementById('doseMed');
+  sel.innerHTML = db.medicacao.length
+    ? db.medicacao.map(m => '<option value="' + m.id + '">' + m.nome + ' (' + m.dose + ')</option>').join('')
+    : '<option value="">— cadastre uma medicacao primeiro —</option>';
+
+  const dt = document.getElementById('doseTable');
+  if (!db.doses.length) {
+    dt.innerHTML = '<div class="empty">Nenhuma dose registrada.</div>';
+  } else {
+    const rows = db.doses.slice().reverse().map(d => {
+      const med = db.medicacao.find(m => m.id == d.medId);
+      return '<tr>' +
+        '<td>' + fmtDate(d.data) + ' ' + (d.hora||'').slice(0,5) + '</td>' +
+        '<td>' + (med ? med.nome + ' — ' + med.dose : 'medicacao removida') + '</td>' +
+        '<td>' + (d.obs||'') + '</td>' +
+        '<td><button class="btn btn-sm btn-danger del-btn" onclick="delDose(' + d.id + ')">Excluir</button></td>' +
+      '</tr>';
+    }).join('');
+    dt.innerHTML = '<table><thead><tr><th>Data/Hora</th><th>Medicamento</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+}
+
+async function addDoseRegistro(ev) {
+  ev.preventDefault();
+  const code = await requireEditCode();
+  if (!code) return;
+  const medId = document.getElementById('doseMed').value;
+  if (!medId) { alert('Cadastre uma medicacao primeiro.'); return; }
+  try {
+    const { error } = await SUPA.rpc('leonardo_add_dose', {
+      p_code: code,
+      p_data: document.getElementById('doseData').value,
+      p_hora: document.getElementById('doseHora').value,
+      p_med_id: parseInt(medId),
+      p_obs: document.getElementById('doseObs').value || null
+    });
+    if (error) throw error;
+    ev.target.reset();
+    setDefaultDates();
+    await reloadFromServer();
+  } catch (e) { alert('Erro: ' + (e.message || e)); }
+}
+async function delDose(id) { await deleteRecord('doses', id); }
+
+async function addAtividade(ev) {
+  ev.preventDefault();
+  const code = await requireEditCode();
+  if (!code) return;
+  try {
+    const { error } = await SUPA.rpc('leonardo_add_atividade', {
+      p_code: code,
+      p_data: document.getElementById('ativData').value,
+      p_tipo: document.getElementById('ativTipo').value,
+      p_duracao: parseInt(document.getElementById('ativDuracao').value),
+      p_intens: document.getElementById('ativIntens').value || null,
+      p_obs: document.getElementById('ativObs').value || null
+    });
+    if (error) throw error;
+    ev.target.reset();
+    setDefaultDates();
+    await reloadFromServer();
+  } catch (e) { alert('Erro: ' + (e.message || e)); }
+}
+async function delAtividade(id) { await deleteRecord('atividade', id); }
+
+function renderAtividade() {
+  const el = document.getElementById('ativTable');
+  if (!db.atividade.length) { el.innerHTML = '<div class="empty">Nenhuma atividade registrada.</div>'; return; }
+  const rows = db.atividade.slice().reverse().map(r => {
+    const cls = r.duracao >= 60 ? 'badge-verde' : r.duracao >= 30 ? 'badge-amarelo' : 'badge-vermelho';
+    const lbl = r.duracao >= 60 ? 'Meta ok' : 'Abaixo da meta';
+    return '<tr>' +
+      '<td>' + fmtDate(r.data) + '</td>' +
+      '<td>' + r.tipo + '</td>' +
+      '<td>' + r.duracao + ' min <span class="badge ' + cls + '">' + lbl + '</span></td>' +
+      '<td>' + (r.intens||'') + '</td>' +
+      '<td>' + (r.obs||'') + '</td>' +
+      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delAtividade(' + r.id + ')">Excluir</button></td>' +
+    '</tr>';
+  }).join('');
+  el.innerHTML = '<table><thead><tr><th>Data</th><th>Tipo</th><th>Duracao</th><th>Intensidade</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function renderDashboard() {
+  const el = document.getElementById('statsGrid');
+  const last = arr => arr.length ? arr[arr.length-1] : null;
+  const lastAnt = last(db.antropometria);
+  const lastGli = last(db.glicemia);
+  const lastPa = last(db.pressao);
+
+  // Para o dashboard, busca o ultimo peso e ultima altura separadamente (podem vir de registros diferentes)
+  const lastPeso = [...db.antropometria].reverse().find(r => r.peso != null);
+  const lastAltura = [...db.antropometria].reverse().find(r => r.altura != null);
+  const dashImc = (lastPeso && lastAltura && lastAltura.altura > 0)
+    ? lastPeso.peso / ((lastAltura.altura/100) ** 2)
+    : (lastAnt && lastAnt.imc != null ? lastAnt.imc : null);
+
+  const hoje = new Date();
+  const seteDiasAtras = new Date(hoje.getTime() - 7*24*60*60*1000).toISOString().slice(0,10);
+  const ativ7d = db.atividade.filter(a => a.data >= seteDiasAtras).reduce((s,a) => s + a.duracao, 0);
+
+  const imcCls = dashImc != null ? classificarImc(dashImc) : null;
+  const gliCls = lastGli ? classificarGli(lastGli.valor, lastGli.contexto) : null;
+  const paCls = lastPa ? classificarPa(lastPa.sis, lastPa.dia) : null;
+  const medAtiva = db.medicacao.length;
+
+  const badge = c => c ? '<span class="badge ' + c.cls + '">' + c.label + '</span>' : 'Sem registro';
+
+  el.innerHTML =
+    '<div class="stat-card peso">' +
+      '<div class="label">Peso atual</div>' +
+      '<div class="value">' + (lastPeso ? lastPeso.peso.toFixed(1)+' kg' : '-') + '</div>' +
+      '<div class="sub">' + (lastPeso ? fmtDate(lastPeso.data) : 'Sem registro') + '</div>' +
+    '</div>' +
+    '<div class="stat-card altura">' +
+      '<div class="label">Altura atual</div>' +
+      '<div class="value">' + (lastAltura ? lastAltura.altura.toFixed(1)+' cm' : '-') + '</div>' +
+      '<div class="sub">' + (lastAltura ? fmtDate(lastAltura.data) : 'Sem registro') + '</div>' +
+    '</div>' +
+    '<div class="stat-card imc">' +
+      '<div class="label">IMC</div>' +
+      '<div class="value">' + (dashImc != null ? dashImc.toFixed(1) : '-') + '</div>' +
+      '<div class="sub">' + badge(imcCls) + '</div>' +
+    '</div>' +
+    '<div class="stat-card gli">' +
+      '<div class="label">Ultima glicemia</div>' +
+      '<div class="value">' + (lastGli ? lastGli.valor+' mg/dL' : '-') + '</div>' +
+      '<div class="sub">' + badge(gliCls) + '</div>' +
+    '</div>' +
+    '<div class="stat-card pa">' +
+      '<div class="label">Ultima pressao</div>' +
+      '<div class="value">' + (lastPa ? lastPa.sis+'/'+lastPa.dia : '-') + '</div>' +
+      '<div class="sub">' + badge(paCls) + '</div>' +
+    '</div>' +
+    '<div class="stat-card ativ">' +
+      '<div class="label">Atividade (ult. 7 dias)</div>' +
+      '<div class="value">' + ativ7d + ' min</div>' +
+      '<div class="sub">Meta: 420 min/sem (60 min/dia)</div>' +
+    '</div>' +
+    '<div class="stat-card">' +
+      '<div class="label">Medicacoes cadastradas</div>' +
+      '<div class="value">' + medAtiva + '</div>' +
+      '<div class="sub">' + db.doses.length + ' dose(s) registrada(s)</div>' +
+    '</div>';
+}
+
+let charts = {};
+function makeChart(id, labels, datasets, yLabel) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: datasets.length > 1 } },
+      scales: {
+        y: { title: { display: !!yLabel, text: yLabel } }
+      }
+    }
+  });
+}
+
+function renderCharts() {
+  // Filtra registros que possuem peso para o gráfico de peso
+  const antComPeso = db.antropometria.filter(r => r.peso != null);
+  const antLabels = antComPeso.map(r => fmtDate(r.data));
+  const pesoData = antComPeso.map(r => r.peso);
+  // IMC: só onde peso E altura existem
+  const antComImc = db.antropometria.filter(r => r.peso != null && r.altura != null && r.altura > 0);
+  const imcLabels = antComImc.map(r => fmtDate(r.data));
+  const imcData = antComImc.map(r => r.imc != null ? r.imc : r.peso / ((r.altura/100) ** 2));
+
+  makeChart('chartPeso', antLabels, [{label:'Peso (kg)', data: pesoData, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.1)', tension:0.3, fill:true}], 'kg');
+  makeChart('chartImc', imcLabels, [{label:'IMC', data: imcData, borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,0.1)', tension:0.3, fill:true}], 'kg/m2');
+  makeChart('chartPesoResumo', antLabels, [{label:'Peso (kg)', data: pesoData, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.1)', tension:0.3, fill:true}], 'kg');
+  makeChart('chartImcResumo', imcLabels, [{label:'IMC', data: imcData, borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,0.1)', tension:0.3, fill:true}], 'kg/m2');
+
+  const gliLabels = db.glicemia.map(r => fmtDate(r.data) + ' ' + (r.hora||'').slice(0,5));
+  const gliVal = db.glicemia.map(r => r.valor);
+  makeChart('chartGli', gliLabels, [{label:'Glicemia (mg/dL)', data: gliVal, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.1)', tension:0.3, fill:true}], 'mg/dL');
+
+  const paLabels = db.pressao.map(r => fmtDate(r.data) + ' ' + (r.hora||'').slice(0,5));
+  const paSis = db.pressao.map(r => r.sis);
+  const paDia = db.pressao.map(r => r.dia);
+  makeChart('chartPa', paLabels, [
+    {label:'Sistolica', data: paSis, borderColor:'#dc2626', backgroundColor:'rgba(220,38,38,0.1)', tension:0.3},
+    {label:'Diastolica', data: paDia, borderColor:'#0891b2', backgroundColor:'rgba(8,145,178,0.1)', tension:0.3}
+  ], 'mmHg');
+
+  const hoje = new Date();
+  const dias = [];
+  for (let i=29; i>=0; i--) {
+    const d = new Date(hoje.getTime() - i*24*60*60*1000);
+    dias.push(d.toISOString().slice(0,10));
+  }
+  const ativPorDia = dias.map(d => db.atividade.filter(a => a.data === d).reduce((s,a) => s+a.duracao, 0));
+  if (document.getElementById('chartAtiv')) {
+    if (charts.chartAtiv) charts.chartAtiv.destroy();
+    charts.chartAtiv = new Chart(document.getElementById('chartAtiv'), {
+      type: 'bar',
+      data: {
+        labels: dias.map(d => d.slice(5)),
+        datasets: [{
+          label: 'Minutos',
+          data: ativPorDia,
+          backgroundColor: ativPorDia.map(v => v >= 60 ? '#16a34a' : v > 0 ? '#f59e0b' : '#e5e7eb')
+        }, {
+          label: 'Meta (60 min)',
+          data: dias.map(() => 60),
+          type: 'line',
+          borderColor: '#dc2626',
+          borderDash: [5,5],
+          pointRadius: 0,
+          fill: false
+        }]
+      },
+      options: { responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true, title:{display:true,text:'minutos'}}}}
+    });
+  }
+}
+
+function gerarAnalise() {
+  const periodo = parseInt(document.getElementById('iaPeriodo').value);
+  const foco = document.getElementById('iaFoco').value;
+  const obs = document.getElementById('iaObs').value.trim();
+
+  const hoje = new Date();
+  const limite = new Date(hoje.getTime() - periodo*24*60*60*1000).toISOString().slice(0,10);
+  const filtrar = arr => arr.filter(r => r.data >= limite);
+
+  const ant = filtrar(db.antropometria);
+  const gli = filtrar(db.glicemia);
+  const pa = filtrar(db.pressao);
+  const ativ = filtrar(db.atividade);
+  const doses = filtrar(db.doses);
+
+  const pesoAtual = ant.length ? ant[ant.length-1].peso : null;
+  const alturaAtual = ant.length ? ant[ant.length-1].altura : null;
+  const imcAtual = ant.length ? ant[ant.length-1].imc : null;
+  const imcInicial = ant.length ? ant[0].imc : null;
+  const deltaImc = (imcAtual !== null && imcInicial !== null) ? (imcAtual - imcInicial) : null;
+  const pesoInicial = ant.length ? ant[0].peso : null;
+  const deltaPeso = (pesoAtual !== null && pesoInicial !== null) ? (pesoAtual - pesoInicial) : null;
+
+  const gliNums = gli.map(g => g.valor);
+  const gliMedia = gliNums.length ? (gliNums.reduce((a,b)=>a+b,0)/gliNums.length) : null;
+  const gliMax = gliNums.length ? Math.max.apply(null, gliNums) : null;
+  const gliMin = gliNums.length ? Math.min.apply(null, gliNums) : null;
+  const gliJejum = gli.filter(g => g.contexto === 'jejum').map(g => g.valor);
+  const gliJejumMedia = gliJejum.length ? (gliJejum.reduce((a,b)=>a+b,0)/gliJejum.length) : null;
+
+  const paSis = pa.map(p => p.sis);
+  const paDia = pa.map(p => p.dia);
+  const paSisMedia = paSis.length ? (paSis.reduce((a,b)=>a+b,0)/paSis.length) : null;
+  const paDiaMedia = paDia.length ? (paDia.reduce((a,b)=>a+b,0)/paDia.length) : null;
+  const paSisMax = paSis.length ? Math.max.apply(null, paSis) : null;
+  const paDiaMax = paDia.length ? Math.max.apply(null, paDia) : null;
+
+  const ativMinTotal = ativ.reduce((s,a) => s+a.duracao, 0);
+  const diasComAtiv = new Set(ativ.map(a => a.data)).size;
+  const ativMinDiaMedia = diasComAtiv ? (ativMinTotal/diasComAtiv) : 0;
+
+  const ctxLabels = {jejum:'Jejum',pre:'Pre-refeicao',pos:'Pos-refeicao (2h)',aleatoria:'Aleatoria',antes_dormir:'Antes de dormir'};
+
+  const focoTexto = {
+    geral: 'Avalie todos os indicadores de saude (antropometria, glicemia, pressao, medicacao e atividade fisica).',
+    peso: 'Foque na analise de peso, IMC, tendencia e implicacoes para a esteatose hepatica infantil.',
+    glicemia: 'Foque na analise dos valores de glicemia e risco de diabetes/pre-diabetes.',
+    pressao: 'Foque na analise dos valores de pressao arterial e risco cardiovascular pediatrico.',
+    atividade: 'Foque na analise do volume e qualidade da atividade fisica e estilo de vida.'
+  };
+
+  const lines = [];
+  lines.push('===========================================================');
+  lines.push('  RELATORIO DE SAUDE - LEONARDO (9 ANOS, SEXO MASCULINO)');
+  lines.push('===========================================================');
+  lines.push('Data do relatorio: ' + hoje.toLocaleDateString('pt-BR'));
+  lines.push('Periodo analisado: ' + (periodo >= 9999 ? 'Todos os registros' : 'Ultimos ' + periodo + ' dias'));
+  lines.push('');
+  lines.push('### CONTEXTO CLINICO');
+  lines.push('- Paciente: Leonardo, 9 anos, sexo masculino');
+  lines.push('- Condicoes relatadas pelos cuidadores: obesidade infantil, esteatose hepatica (gordura no figado), suspeita de diabetes');
+  if (obs) lines.push('- Observacoes adicionais: ' + obs);
+  lines.push('');
+
+  lines.push('### 1. ANTROPOMETRIA (peso, altura, IMC)');
+  if (!ant.length) {
+    lines.push('Sem registros no periodo.');
+  } else {
+    lines.push('Registros: ' + ant.length);
+    if (pesoAtual !== null) lines.push('Peso mais recente: ' + pesoAtual.toFixed(1) + ' kg (' + fmtDate(ant[ant.length-1].data) + ')');
+    if (alturaAtual !== null) lines.push('Altura mais recente: ' + alturaAtual.toFixed(1) + ' cm');
+    if (imcAtual !== null) {
+      const c = classificarImc(imcAtual);
+      lines.push('IMC mais recente: ' + imcAtual.toFixed(2) + ' kg/m2 (classificacao aproximada: ' + c.label + ')');
+    }
+    if (deltaPeso !== null) lines.push('Variacao de peso no periodo: ' + (deltaPeso >= 0 ? '+' : '') + deltaPeso.toFixed(1) + ' kg');
+    if (deltaImc !== null) lines.push('Variacao de IMC no periodo: ' + (deltaImc >= 0 ? '+' : '') + deltaImc.toFixed(2) + ' kg/m2');
+    lines.push('');
+    lines.push('Historico completo:');
+    ant.forEach(r => {
+      let l = '  ' + fmtDate(r.data) + ' | peso: ' + r.peso.toFixed(1) + ' kg | altura: ' + r.altura.toFixed(1) + ' cm | IMC: ' + r.imc.toFixed(2);
+      if (r.circ) l += ' | circ. abdominal: ' + r.circ.toFixed(1) + ' cm';
+      if (r.obs) l += ' | obs: ' + r.obs;
+      lines.push(l);
+    });
+  }
+  lines.push('');
+
+  lines.push('### 2. GLICEMIA');
+  if (!gli.length) {
+    lines.push('Sem registros no periodo.');
+  } else {
+    lines.push('Total de medicoes: ' + gli.length);
+    if (gliMedia !== null) lines.push('Media geral: ' + gliMedia.toFixed(0) + ' mg/dL (min: ' + gliMin + ', max: ' + gliMax + ')');
+    if (gliJejumMedia !== null) lines.push('Media em jejum: ' + gliJejumMedia.toFixed(0) + ' mg/dL (' + gliJejum.length + ' medicoes)');
+    lines.push('');
+    lines.push('Historico completo:');
+    gli.forEach(r => {
+      let l = '  ' + fmtDate(r.data) + ' ' + (r.hora||'').slice(0,5) + ' | ' + r.valor + ' mg/dL | ' + (ctxLabels[r.contexto]||r.contexto);
+      if (r.obs) l += ' | obs: ' + r.obs;
+      lines.push(l);
+    });
+  }
+  lines.push('');
+
+  lines.push('### 3. PRESSAO ARTERIAL');
+  if (!pa.length) {
+    lines.push('Sem registros no periodo.');
+  } else {
+    lines.push('Total de medicoes: ' + pa.length);
+    if (paSisMedia !== null) lines.push('Media: ' + paSisMedia.toFixed(0) + '/' + paDiaMedia.toFixed(0) + ' mmHg');
+    if (paSisMax !== null) lines.push('Maxima registrada: ' + paSisMax + '/' + paDiaMax + ' mmHg');
+    lines.push('');
+    lines.push('Historico completo:');
+    pa.forEach(r => {
+      let l = '  ' + fmtDate(r.data) + ' ' + (r.hora||'').slice(0,5) + ' | ' + r.sis + '/' + r.dia + ' mmHg';
+      if (r.fc) l += ' | FC: ' + r.fc + ' bpm';
+      if (r.obs) l += ' | obs: ' + r.obs;
+      lines.push(l);
+    });
+  }
+  lines.push('');
+
+  lines.push('### 4. MEDICACOES');
+  if (!db.medicacao.length) {
+    lines.push('Nenhuma medicacao cadastrada.');
+  } else {
+    db.medicacao.forEach(m => {
+      let l = '- ' + m.nome + ' | dose: ' + m.dose + ' | frequencia: ' + m.freq;
+      if (m.inicio) l += ' | inicio: ' + fmtDate(m.inicio);
+      if (m.fim) l += ' | termino: ' + fmtDate(m.fim);
+      if (m.medico) l += ' | prescrito por: ' + m.medico;
+      if (m.obs) l += ' | obs: ' + m.obs;
+      lines.push(l);
+    });
+    if (doses.length) {
+      lines.push('');
+      lines.push('Doses administradas registradas no periodo: ' + doses.length);
+    }
+  }
+  lines.push('');
+
+  lines.push('### 5. ATIVIDADE FISICA');
+  if (!ativ.length) {
+    lines.push('Sem registros no periodo.');
+  } else {
+    lines.push('Sessoes registradas: ' + ativ.length);
+    lines.push('Dias com atividade: ' + diasComAtiv);
+    lines.push('Total de minutos: ' + ativMinTotal + ' min');
+    lines.push('Media por dia ativo: ' + ativMinDiaMedia.toFixed(0) + ' min');
+    lines.push('Meta OMS: >= 60 min/dia de atividade moderada a vigorosa');
+    lines.push('');
+    lines.push('Historico resumido (ultimas 20 sessoes):');
+    ativ.slice(-20).forEach(r => {
+      let l = '  ' + fmtDate(r.data) + ' | ' + r.tipo + ' | ' + r.duracao + ' min | ' + r.intens;
+      if (r.obs) l += ' | obs: ' + r.obs;
+      lines.push(l);
+    });
+  }
+  lines.push('');
+
+  lines.push('### 6. EXAMES LABORATORIAIS');
+  const exames = (db.exames || []).slice().sort((a,b) => a.data.localeCompare(b.data));
+  if (!exames.length) {
+    lines.push('Sem exames registrados.');
+  } else {
+    const porData = {};
+    exames.forEach(e => { if (!porData[e.data]) porData[e.data] = []; porData[e.data].push(e); });
+    Object.keys(porData).sort().reverse().forEach(data => {
+      lines.push('');
+      lines.push('Coleta em ' + fmtDate(data) + ':');
+      const porCat = {};
+      porData[data].forEach(e => { if (!porCat[e.categoria]) porCat[e.categoria] = []; porCat[e.categoria].push(e); });
+      Object.keys(porCat).forEach(cat => {
+        lines.push('  [' + cat + ']');
+        porCat[cat].forEach(e => {
+          let l = '    - ' + e.nome + ': ' + e.valor + (e.unidade ? ' ' + e.unidade : '');
+          if (e.ref) l += ' (ref: ' + e.ref + ')';
+          if (e.status) l += ' [' + e.status + ']';
+          if (e.obs) l += ' | ' + e.obs;
+          lines.push(l);
+        });
+      });
+    });
+  }
+  lines.push('');
+
+  lines.push('### 7. FAIXAS DE REFERENCIA PEDIATRICAS (para contexto)');
+  lines.push('- IMC menino 9 anos: normal 13,7-17,9 | sobrepeso 17,9-20,5 | obesidade > 20,5 kg/m2 (OMS)');
+  lines.push('- Glicemia jejum: normal 70-99 | pre-diabetes 100-125 | diabetes >= 126 mg/dL');
+  lines.push('- Glicemia pos-prandial 2h: normal < 140 | alterada 140-199 | diabetes >= 200 mg/dL');
+  lines.push('- Pressao arterial menino 9 anos (altura media, AAP 2017): normal < 108/72 | elevada 108-114/72-77 | HA1 115-126/78-85 | HA2 >= 127/86 mmHg');
+  lines.push('- Atividade fisica (OMS 5-17 anos): >= 60 min/dia de atividade moderada a vigorosa');
+  lines.push('');
+
+  lines.push('===========================================================');
+  lines.push('  SOLICITACAO PARA A IA');
+  lines.push('===========================================================');
+  lines.push('Voce e um assistente informativo especializado em saude pediatrica. Analise os dados acima de Leonardo (9 anos) e responda em portugues:');
+  lines.push('');
+  lines.push('1. **Avaliacao geral**: Os valores registrados estao dentro do esperado para uma crianca de 9 anos com quadro de obesidade e esteatose hepatica? Indique o que esta normal, o que merece atencao e o que seria preocupante.');
+  lines.push('');
+  lines.push('2. **Tendencias**: Ha tendencia de melhora, estabilidade ou piora nos indicadores ao longo do periodo? Comente especificamente sobre IMC, glicemia e pressao.');
+  lines.push('');
+  lines.push('3. **Foco especifico**: ' + focoTexto[foco]);
+  lines.push('');
+  lines.push('4. **Sinais de alerta**: Existem valores ou padroes que sugiram necessidade de procurar o pediatra com urgencia ou solicitar exames complementares (ex: ALT, AST, GGT, HOMA-IR, HbA1c, perfil lipidico)?');
+  lines.push('');
+  lines.push('5. **Recomendacoes educacionais**: Sugira 3 a 5 orientacoes praticas sobre alimentacao, atividade fisica e rotina familiar — lembrando que sao orientacoes gerais e nao substituem o medico.');
+  lines.push('');
+  lines.push('6. **Perguntas para o medico**: Liste 5 perguntas importantes que os cuidadores deveriam fazer na proxima consulta pediatrica com base nestes dados.');
+  lines.push('');
+  lines.push('IMPORTANTE: Deixe claro ao final que sua analise e informativa e educacional, nao substitui avaliacao medica presencial, e que qualquer decisao sobre medicacao, dieta ou intensidade de exercicios deve ser tomada com o pediatra/endocrinologista/hepatologista pediatrico do Leonardo.');
+
+  document.getElementById('iaOutput').value = lines.join('\n');
+}
+
+function copiarAnalise() {
+  const ta = document.getElementById('iaOutput');
+  if (!ta.value.trim()) { alert('Gere o relatorio primeiro clicando em "Gerar relatorio e prompt".'); return; }
+  ta.select();
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(() => {
+        alert('Relatorio copiado! Agora cole em Claude.ai, ChatGPT ou Gemini.');
+      }).catch(() => {
+        document.execCommand('copy');
+        alert('Relatorio copiado!');
+      });
+    } else {
+      document.execCommand('copy');
+      alert('Relatorio copiado!');
+    }
+  } catch(e) {
+    document.execCommand('copy');
+    alert('Relatorio copiado!');
+  }
+}
+
+function baixarAnalise() {
+  const texto = document.getElementById('iaOutput').value;
+  if (!texto.trim()) { alert('Gere o relatorio primeiro.'); return; }
+  const blob = new Blob([texto], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'relatorio-leonardo-' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function addExame(ev) {
+  ev.preventDefault();
+  const code = await requireEditCode();
+  if (!code) return;
+  const f = ev.target;
+  try {
+    const { error } = await SUPA.rpc('leonardo_add_exame', {
+      p_code: code,
+      p_data: f.data.value,
+      p_categoria: f.categoria.value,
+      p_nome: f.nome.value,
+      p_valor: f.valor.value,
+      p_unidade: f.unidade.value || null,
+      p_ref: f.ref.value || null,
+      p_status: f.status.value || 'normal',
+      p_obs: f.obs.value || null
+    });
+    if (error) throw error;
+    f.reset();
+    const sel = f.querySelector('input[name="data"]');
+    if (sel) sel.value = new Date().toISOString().slice(0,10);
+    await reloadFromServer();
+  } catch (e) { alert('Erro: ' + (e.message || e)); }
+}
+async function delExame(id) { await deleteRecord('exames', id); }
+
+function renderExames() {
+  const container = document.getElementById('examesContainer');
+  if (!container) return;
+  const lista = (db.exames || []).slice();
+  if (!lista.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:13px">Nenhum exame registrado ainda.</p>';
+    return;
+  }
+  const porData = {};
+  lista.forEach(e => {
+    if (!porData[e.data]) porData[e.data] = [];
+    porData[e.data].push(e);
+  });
+  const datasOrd = Object.keys(porData).sort().reverse();
+  const statusColor = { normal: '#16a34a', atencao: '#f59e0b', alterado: '#dc2626' };
+  const statusLabel = { normal: 'Normal', atencao: 'Atenção', alterado: 'Alterado' };
+  let html = '';
+  datasOrd.forEach(data => {
+    const d = new Date(data + 'T12:00:00');
+    const dataFmt = d.toLocaleDateString('pt-BR');
+    html += '<div style="margin-bottom:22px">';
+    html += '<h3 style="font-size:15px;margin-bottom:10px;color:var(--primary)">📅 Coleta em ' + dataFmt + '</h3>';
+    const porCat = {};
+    porData[data].forEach(e => {
+      if (!porCat[e.categoria]) porCat[e.categoria] = [];
+      porCat[e.categoria].push(e);
+    });
+    Object.keys(porCat).forEach(cat => {
+      html += '<div style="margin-bottom:14px"><h4 style="font-size:13px;font-weight:600;color:var(--text);margin:8px 0;text-transform:uppercase;letter-spacing:0.5px">' + cat + '</h4>';
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html += '<thead><tr style="background:#f8fafc;text-align:left"><th style="padding:8px;border-bottom:1px solid var(--border)">Exame</th><th style="padding:8px;border-bottom:1px solid var(--border)">Valor</th><th style="padding:8px;border-bottom:1px solid var(--border)">Referência</th><th style="padding:8px;border-bottom:1px solid var(--border)">Status</th><th style="padding:8px;border-bottom:1px solid var(--border)"></th></tr></thead><tbody>';
+      porCat[cat].forEach(e => {
+        const cor = statusColor[e.status] || '#64748b';
+        const lbl = statusLabel[e.status] || e.status;
+        html += '<tr style="border-bottom:1px solid var(--border)">';
+        html += '<td style="padding:8px;vertical-align:top"><strong>' + e.nome + '</strong>';
+        if (e.obs) html += '<br><span style="color:var(--muted);font-size:11px">' + e.obs + '</span>';
+        html += '</td>';
+        html += '<td style="padding:8px;vertical-align:top;font-weight:600">' + e.valor + (e.unidade ? ' <span style="color:var(--muted);font-weight:400">' + e.unidade + '</span>' : '') + '</td>';
+        html += '<td style="padding:8px;vertical-align:top;color:var(--muted);font-size:12px">' + (e.ref || '—') + '</td>';
+        html += '<td style="padding:8px;vertical-align:top"><span style="display:inline-block;padding:3px 10px;border-radius:12px;background:' + cor + '22;color:' + cor + ';font-size:11px;font-weight:600">' + lbl + '</span></td>';
+        html += '<td style="padding:8px;vertical-align:top"><button class="btn btn-sm btn-danger del-btn" onclick="delExame(' + e.id + ')">Excluir</button></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div></div>';
+    });
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function renderAll() {
+  renderDashboard();
+  renderAntropometria();
+  renderGlicemia();
+  renderPressao();
+  renderMedicacao();
+  renderAtividade();
+  renderExames();
+  renderCharts();
+}
+
+function setDefaultDates() {
+  const today = new Date().toISOString().slice(0,10);
+  const now = new Date().toTimeString().slice(0,5);
+  ['antData','gliData','paData','doseData','ativData'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = today;
+  });
+  ['gliHora','paHora','doseHora'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = now;
+  });
+}
+
+// Inicialização: começa em modo readonly
+document.body.classList.add('readonly');
+(function injectReadonlyNote(){
+  const dashCard = document.querySelector('#dashboard .card');
+  if (dashCard) {
+    const note = document.createElement('div');
+    note.id = 'readonlyNote';
+    note.style.cssText = 'background:#eff6ff;border-left:4px solid #2563eb;padding:12px 16px;border-radius:8px;font-size:13px;color:#1e3a8a;margin-bottom:14px';
+    note.innerHTML = '<strong>📋 Modo visualização</strong><br>Você está vendo o monitor de saúde do Leonardo em modo somente leitura. Todos os dados exibidos foram registrados pelos responsáveis. Para registrar novos dados, clique em <strong>🔓 Entrar em modo edição</strong> no topo da página e digite o código.';
+    dashCard.insertBefore(note, dashCard.firstChild);
+  }
+})();
+(async function init(){
+  setDefaultDates();
+  await loadDb();
+  renderAll();
+})();
+// v4 build (supabase)
+
+// PWA: register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('SW registered:', reg.scope))
+    .catch(err => console.log('SW registration failed:', err));
+}
+</script>
+</body>
+</html>
