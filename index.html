@@ -199,6 +199,51 @@
   .badge-azul { background: #dbeafe; color: #1e40af; }
   .actions-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; padding: 16px; }
+  /* Inputs otimizados para touch (min 44px de altura no iOS HIG, 48dp Android) */
+  input[type="number"], input[type="text"], input[type="date"], input[type="time"], input[type="email"], select, textarea {
+    min-height: 44px;
+    font-size: 16px; /* previne zoom automático no iOS */
+  }
+  @media (max-width: 720px) {
+    body { padding: 12px; }
+    .card { padding: 16px; }
+    .form-row { flex-direction: column; gap: 12px; }
+    .form-row > * { min-width: 100% !important; }
+    header { padding: 18px 20px; }
+    header h1 { font-size: 22px; }
+    .tabs { padding: 4px; gap: 2px; }
+    .tab { min-width: 90px; padding: 10px 10px; font-size: 12px; }
+    button.btn { min-height: 44px; padding: 12px 18px; font-size: 15px; }
+  }
+
+  /* Modal de login por magic link */
+  .login-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
+    padding: 20px;
+  }
+  .login-backdrop.open { display: flex; }
+  .login-modal {
+    background: white; border-radius: var(--radius);
+    padding: 28px 24px; max-width: 420px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .login-modal h3 { font-size: 18px; margin-bottom: 8px; }
+  .login-modal p { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+  .login-modal input {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 16px; margin-bottom: 12px; min-height: 48px;
+  }
+  .login-modal .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .login-modal .actions button { flex: 1; min-height: 48px; font-size: 15px; }
+  .login-status {
+    padding: 10px 14px; border-radius: 8px; font-size: 13px;
+    margin-top: 10px; display: none;
+  }
+  .login-status.ok { background: #dcfce7; color: #166534; display: block; }
+  .login-status.err { background: #fee2e2; color: #991b1b; display: block; }
+  .login-status.info { background: #dbeafe; color: #1e40af; display: block; }
+
   /* Check-in rápido */
   .checkin-card {
     background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
@@ -215,8 +260,8 @@
   .checkin-fields .field { flex: 1; min-width: 130px; }
   .checkin-fields .field label { font-size: 12px; color: var(--muted); font-weight: 600; display: block; margin-bottom: 4px; }
   .checkin-fields .field input {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
-    border-radius: 8px; font-size: 15px; background: white;
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 16px; background: white; min-height: 48px;
   }
   .checkin-fields .field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
   .checkin-btn {
@@ -248,10 +293,24 @@
     <h1>🩺 Monitor de Saúde — Leonardo <span class="readonly-badge">🔒 Modo visualização</span></h1>
     <p>9 anos · Acompanhamento de peso, IMC, glicemia, pressão, medicação, atividade física e exames laboratoriais</p>
     <div class="header-actions" style="display:flex">
-      <button id="unlockBtn" onclick="toggleEditMode()">🔓 Entrar em modo edição</button>
+      <button id="unlockBtn" onclick="toggleEditMode()">🔓 Entrar</button>
       <button onclick="reloadFromServer()">🔄 Atualizar dados</button>
     </div>
   </header>
+
+  <!-- Modal de login por magic link -->
+  <div class="login-backdrop" id="loginBackdrop">
+    <div class="login-modal">
+      <h3>🔐 Entrar no modo edição</h3>
+      <p>Enviaremos um link mágico para o seu e-mail. Clique no link para entrar sem precisar de senha.</p>
+      <input type="email" id="loginEmail" placeholder="veetty@gmail.com" inputmode="email" autocomplete="email">
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="closeLoginModal()">Cancelar</button>
+        <button class="btn" id="sendMagicBtn" onclick="sendMagicLink()">Receber link</button>
+      </div>
+      <div class="login-status" id="loginStatus"></div>
+    </div>
+  </div>
 
   <nav class="tabs">
     <button class="tab active" onclick="showTab('dashboard', this)">📊 Resumo</button>
@@ -268,13 +327,23 @@
   <section id="dashboard" class="panel active">
     <div class="checkin-card" id="checkinCard">
       <h2>⚡ Check-in rápido de hoje</h2>
-      <p class="checkin-sub">Preencha só o que quiser registrar agora. Nenhum campo é obrigatório.</p>
+      <p class="checkin-sub">Preencha só o que quiser registrar agora. Todos os campos são opcionais — registre um, vários ou todos.</p>
       <form onsubmit="addCheckin(event)" id="checkinForm">
         <div class="checkin-fields">
           <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="ckPeso" placeholder="Ex: 32.5"></div>
           <div class="field"><label>Sistólica</label><input type="number" step="1" min="0" id="ckSis" placeholder="Ex: 105"></div>
           <div class="field"><label>Diastólica</label><input type="number" step="1" min="0" id="ckDia" placeholder="Ex: 65"></div>
           <div class="field"><label>FC (bpm)</label><input type="number" step="1" min="0" id="ckFc" placeholder="Opcional"></div>
+          <div class="field"><label>Glicemia (mg/dL)</label><input type="number" step="1" min="0" id="ckGli" placeholder="Ex: 92"></div>
+          <div class="field"><label>Contexto glicemia</label>
+            <select id="ckGliContexto">
+              <option value="jejum">Jejum</option>
+              <option value="pre">Pré-refeição</option>
+              <option value="pos">Pós-refeição (2h)</option>
+              <option value="aleatoria">Aleatória</option>
+              <option value="antes_dormir">Antes de dormir</option>
+            </select>
+          </div>
           <button type="submit" class="checkin-btn">Salvar</button>
         </div>
       </form>
@@ -702,11 +771,20 @@
 // ===== Configuração do Supabase =====
 const SUPABASE_URL = 'https://qwlegnebejakwwuntyrd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3bGVnbmViZWpha3d3dW50eXJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTUxODYsImV4cCI6MjA5MTI3MTE4Nn0.lkYjF5xXwS_XW8Wi-p0YBBOxY7Bjs_HDw7PIWDTcPYQ';
-const SUPA = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPA = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+
+// Lista de e-mails autorizados a editar
+const AUTHORIZED_EMAILS = ['veetty@gmail.com'];
+// Código compartilhado injetado automaticamente após autenticação
+const SHARED_EDIT_CODE = 'leo2026mon';
 
 // Código de edição — em memória após desbloqueio
 let EDIT_CODE = null;
+let CURRENT_USER = null;
 function isEditMode() { return !!EDIT_CODE; }
+function isAuthorized(email) { return email && AUTHORIZED_EMAILS.includes(email.toLowerCase()); }
 
 let db = {
   antropometria: [],
@@ -858,7 +936,9 @@ async function addCheckin(ev) {
   const sisVal = document.getElementById('ckSis').value;
   const diaVal = document.getElementById('ckDia').value;
   const fcVal = document.getElementById('ckFc').value;
-  if (!pesoVal && !sisVal && !diaVal) { alert('Preencha pelo menos um campo.'); return; }
+  const gliVal = document.getElementById('ckGli').value;
+  const gliContexto = document.getElementById('ckGliContexto').value;
+  if (!pesoVal && !sisVal && !diaVal && !fcVal && !gliVal) { alert('Preencha pelo menos um campo.'); return; }
   const hoje = new Date().toISOString().slice(0, 10);
   const agora = new Date().toTimeString().slice(0, 5);
   const msgs = [];
@@ -873,7 +953,7 @@ async function addCheckin(ev) {
       if (error) throw error;
       msgs.push('Peso ' + pesoVal + ' kg');
     }
-    // Salvar pressão
+    // Salvar pressão — registra se sis e dia estiverem presentes (FC é opcional)
     if (sisVal && diaVal) {
       const { error } = await SUPA.rpc('leonardo_add_pressao', {
         p_code: code, p_data: hoje, p_hora: agora,
@@ -883,9 +963,17 @@ async function addCheckin(ev) {
       });
       if (error) throw error;
       msgs.push('PA ' + sisVal + '/' + diaVal + (fcVal ? ' FC ' + fcVal : ''));
-    } else if (sisVal || diaVal) {
-      alert('Para pressão, preencha sistólica e diastólica juntas.');
-      return;
+    }
+    // Salvar glicemia
+    if (gliVal) {
+      const { error } = await SUPA.rpc('leonardo_add_glicemia', {
+        p_code: code, p_data: hoje, p_hora: agora,
+        p_valor: parseInt(gliVal),
+        p_contexto: gliContexto,
+        p_obs: 'Check-in rápido'
+      });
+      if (error) throw error;
+      msgs.push('Glicemia ' + gliVal + ' mg/dL');
     }
     ev.target.reset();
     const okEl = document.getElementById('checkinOk');
