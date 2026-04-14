@@ -945,9 +945,18 @@ async function addCheckin(ev) {
   try {
     // Salvar peso (como antropometria só com peso)
     if (pesoVal) {
+      // A tabela antropometria exige altura — usamos a última altura registrada
+      let ultimaAltura = null;
+      for (let i = db.antropometria.length - 1; i >= 0; i--) {
+        if (db.antropometria[i].altura != null) { ultimaAltura = db.antropometria[i].altura; break; }
+      }
+      if (ultimaAltura == null) {
+        alert('Para registrar peso pela primeira vez, cadastre a altura do Leonardo na aba Antropometria.');
+        return;
+      }
       const { error } = await SUPA.rpc('leonardo_add_antropometria', {
         p_code: code, p_data: hoje,
-        p_peso: parseFloat(pesoVal), p_altura: null, p_circ: null,
+        p_peso: parseFloat(pesoVal), p_altura: parseFloat(ultimaAltura), p_circ: null,
         p_obs: 'Check-in rápido'
       });
       if (error) throw error;
