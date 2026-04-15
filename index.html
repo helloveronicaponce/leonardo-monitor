@@ -281,9 +281,46 @@
   body.readonly .checkin-card { display: none !important; }
   body.readonly .card:has(form) { display: none !important; }
   body.readonly .del-btn { display: none !important; }
+  body.readonly .edit-btn { display: none !important; }
   body.readonly .ref-box.readonly-hidden { display: none !important; }
   body.readonly .readonly-badge { display: inline-block !important; }
   .readonly-badge { display: none; background: rgba(255,255,255,0.25); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 10px; letter-spacing: 0.3px; }
+
+  /* Botão editar */
+  .edit-btn {
+    background: #f59e0b; color: #fff; border: none;
+    padding: 4px 10px; border-radius: 6px; font-size: 12px;
+    font-weight: 600; cursor: pointer; margin-right: 4px;
+  }
+  .edit-btn:hover { background: #d97706; }
+
+  /* Modal de edição */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15,23,42,0.55); align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 12px; width: 100%; max-width: 560px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25); padding: 22px 24px;
+  }
+  .modal-box h3 { font-size: 17px; margin-bottom: 4px; color: var(--primary); }
+  .modal-box .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .modal-box .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-box .modal-grid .full { grid-column: 1 / -1; }
+  .modal-box label { display:block; font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+  .modal-box input, .modal-box select, .modal-box textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  .modal-box textarea { min-height: 60px; resize: vertical; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .modal-actions button { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+  .modal-cancel { background: #e5e7eb; color: #374151; }
+  .modal-cancel:hover { background: #d1d5db; }
+  .modal-save { background: var(--primary); color: #fff; }
+  .modal-save:hover { background: var(--primary-dark); }
 </style>
 </head>
 <body>
@@ -1042,7 +1079,8 @@ function renderAntropometria() {
       '<td>' + imcTxt + '</td>' +
       '<td>' + (r.circ ? r.circ.toFixed(1) + ' cm' : '-') + '</td>' +
       '<td>' + (r.obs||'') + '</td>' +
-      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delAntropometria(' + r.id + ')">Excluir</button></td>' +
+      '<td><button class="btn btn-sm edit-btn" onclick="openEditModal(\'antropometria\',' + r.id + ')">Editar</button>' +
+      '<button class="btn btn-sm btn-danger del-btn" onclick="delAntropometria(' + r.id + ')">Excluir</button></td>' +
     '</tr>';
   }).join('');
   el.innerHTML = '<table><thead><tr><th>Data</th><th>Peso</th><th>Altura</th><th>IMC</th><th>Circ. abd.</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -1081,7 +1119,8 @@ function renderGlicemia() {
       '<td>' + (ctxLabels[r.contexto]||r.contexto) + '</td>' +
       '<td><span class="badge ' + c.cls + '">' + c.label + '</span></td>' +
       '<td>' + (r.obs||'') + '</td>' +
-      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delGlicemia(' + r.id + ')">Excluir</button></td>' +
+      '<td><button class="btn btn-sm edit-btn" onclick="openEditModal(\'glicemia\',' + r.id + ')">Editar</button>' +
+      '<button class="btn btn-sm btn-danger del-btn" onclick="delGlicemia(' + r.id + ')">Excluir</button></td>' +
     '</tr>';
   }).join('');
   el.innerHTML = '<table><thead><tr><th>Data/Hora</th><th>Valor</th><th>Contexto</th><th>Status</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -1120,7 +1159,8 @@ function renderPressao() {
       '<td>' + (r.fc ? r.fc + ' bpm' : '-') + '</td>' +
       '<td><span class="badge ' + c.cls + '">' + c.label + '</span></td>' +
       '<td>' + (r.obs||'') + '</td>' +
-      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delPressao(' + r.id + ')">Excluir</button></td>' +
+      '<td><button class="btn btn-sm edit-btn" onclick="openEditModal(\'pressao\',' + r.id + ')">Editar</button>' +
+      '<button class="btn btn-sm btn-danger del-btn" onclick="delPressao(' + r.id + ')">Excluir</button></td>' +
     '</tr>';
   }).join('');
   el.innerHTML = '<table><thead><tr><th>Data/Hora</th><th>PA</th><th>FC</th><th>Status</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -1161,7 +1201,8 @@ function renderMedicacao() {
       '<td>' + (r.fim ? fmtDate(r.fim) : '-') + '</td>' +
       '<td>' + (r.medico||'') + '</td>' +
       '<td>' + (r.obs||'') + '</td>' +
-      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delMedicacao(' + r.id + ')">Excluir</button></td>' +
+      '<td><button class="btn btn-sm edit-btn" onclick="openEditModal(\'medicacao\',' + r.id + ')">Editar</button>' +
+      '<button class="btn btn-sm btn-danger del-btn" onclick="delMedicacao(' + r.id + ')">Excluir</button></td>' +
     '</tr>').join('');
     el.innerHTML = '<table><thead><tr><th>Medicamento</th><th>Dose</th><th>Frequencia</th><th>Inicio</th><th>Termino</th><th>Medico</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
@@ -1180,7 +1221,8 @@ function renderMedicacao() {
         '<td>' + fmtDate(d.data) + ' ' + (d.hora||'').slice(0,5) + '</td>' +
         '<td>' + (med ? med.nome + ' — ' + med.dose : 'medicacao removida') + '</td>' +
         '<td>' + (d.obs||'') + '</td>' +
-        '<td><button class="btn btn-sm btn-danger del-btn" onclick="delDose(' + d.id + ')">Excluir</button></td>' +
+        '<td><button class="btn btn-sm edit-btn" onclick="openEditModal(\'doses\',' + d.id + ')">Editar</button>' +
+        '<button class="btn btn-sm btn-danger del-btn" onclick="delDose(' + d.id + ')">Excluir</button></td>' +
       '</tr>';
     }).join('');
     dt.innerHTML = '<table><thead><tr><th>Data/Hora</th><th>Medicamento</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -1242,7 +1284,8 @@ function renderAtividade() {
       '<td>' + r.duracao + ' min <span class="badge ' + cls + '">' + lbl + '</span></td>' +
       '<td>' + (r.intens||'') + '</td>' +
       '<td>' + (r.obs||'') + '</td>' +
-      '<td><button class="btn btn-sm btn-danger del-btn" onclick="delAtividade(' + r.id + ')">Excluir</button></td>' +
+      '<td><button class="btn btn-sm edit-btn" onclick="openEditModal(\'atividade\',' + r.id + ')">Editar</button>' +
+      '<button class="btn btn-sm btn-danger del-btn" onclick="delAtividade(' + r.id + ')">Excluir</button></td>' +
     '</tr>';
   }).join('');
   el.innerHTML = '<table><thead><tr><th>Data</th><th>Tipo</th><th>Duracao</th><th>Intensidade</th><th>Obs</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -1707,7 +1750,7 @@ function renderExames() {
         html += '<td style="padding:8px;vertical-align:top;font-weight:600">' + e.valor + (e.unidade ? ' <span style="color:var(--muted);font-weight:400">' + e.unidade + '</span>' : '') + '</td>';
         html += '<td style="padding:8px;vertical-align:top;color:var(--muted);font-size:12px">' + (e.ref || '—') + '</td>';
         html += '<td style="padding:8px;vertical-align:top"><span style="display:inline-block;padding:3px 10px;border-radius:12px;background:' + cor + '22;color:' + cor + ';font-size:11px;font-weight:600">' + lbl + '</span></td>';
-        html += '<td style="padding:8px;vertical-align:top"><button class="btn btn-sm btn-danger del-btn" onclick="delExame(' + e.id + ')">Excluir</button></td>';
+        html += '<td style="padding:8px;vertical-align:top;white-space:nowrap"><button class="btn btn-sm edit-btn" onclick="openEditModal(\'exames\',' + e.id + ')">Editar</button><button class="btn btn-sm btn-danger del-btn" onclick="delExame(' + e.id + ')">Excluir</button></td>';
         html += '</tr>';
       });
       html += '</tbody></table></div></div>';
@@ -1758,6 +1801,200 @@ document.body.classList.add('readonly');
   await loadDb();
   renderAll();
 })();
+// ===== EDIÇÃO DE REGISTROS =====
+// Schema dos formulários de edição por entidade
+const EDIT_SCHEMA = {
+  antropometria: {
+    title: 'Editar registro antropométrico',
+    table: 'antropometria',
+    addRpc: 'leonardo_add_antropometria',
+    fields: [
+      { key:'data', label:'Data', type:'date', required:true },
+      { key:'peso', label:'Peso (kg)', type:'number', step:'0.1' },
+      { key:'altura', label:'Altura (cm)', type:'number', step:'0.1' },
+      { key:'circ', label:'Circunf. abdominal (cm)', type:'number', step:'0.1' },
+      { key:'obs', label:'Observação', type:'text', full:true },
+    ],
+    toParams: v => ({ p_data: v.data, p_peso: v.peso!==''?parseFloat(v.peso):null, p_altura: v.altura!==''?parseFloat(v.altura):null, p_circ: v.circ!==''?parseFloat(v.circ):null, p_obs: v.obs||null })
+  },
+  glicemia: {
+    title: 'Editar glicemia',
+    table: 'glicemia',
+    addRpc: 'leonardo_add_glicemia',
+    fields: [
+      { key:'data', label:'Data', type:'date', required:true },
+      { key:'hora', label:'Hora', type:'time', required:true },
+      { key:'valor', label:'Valor (mg/dL)', type:'number', step:'1', required:true },
+      { key:'contexto', label:'Contexto', type:'select', options:[
+        ['jejum','Jejum'],['pre','Pré-refeição'],['pos','Pós-refeição (2h)'],
+        ['aleatoria','Aleatória'],['antes_dormir','Antes de dormir']
+      ]},
+      { key:'obs', label:'Observação', type:'text', full:true },
+    ],
+    toParams: v => ({ p_data:v.data, p_hora:v.hora, p_valor:parseInt(v.valor), p_contexto:v.contexto, p_obs:v.obs||null })
+  },
+  pressao: {
+    title: 'Editar pressão',
+    table: 'pressao',
+    addRpc: 'leonardo_add_pressao',
+    fields: [
+      { key:'data', label:'Data', type:'date', required:true },
+      { key:'hora', label:'Hora', type:'time', required:true },
+      { key:'sis', label:'Sistólica (mmHg)', type:'number', step:'1', required:true },
+      { key:'dia', label:'Diastólica (mmHg)', type:'number', step:'1', required:true },
+      { key:'fc', label:'FC (bpm)', type:'number', step:'1' },
+      { key:'obs', label:'Observação', type:'text', full:true },
+    ],
+    toParams: v => ({ p_data:v.data, p_hora:v.hora, p_sis:parseInt(v.sis), p_dia:parseInt(v.dia), p_fc:v.fc!==''?parseInt(v.fc):null, p_obs:v.obs||null })
+  },
+  medicacao: {
+    title: 'Editar medicação',
+    table: 'medicacao',
+    addRpc: 'leonardo_add_medicacao',
+    fields: [
+      { key:'nome', label:'Medicamento', type:'text', required:true, full:true },
+      { key:'dose', label:'Dose', type:'text' },
+      { key:'freq', label:'Frequência', type:'text' },
+      { key:'inicio', label:'Início', type:'date' },
+      { key:'fim', label:'Término', type:'date' },
+      { key:'medico', label:'Médico', type:'text' },
+      { key:'obs', label:'Observação', type:'text', full:true },
+    ],
+    toParams: v => ({ p_nome:v.nome, p_dose:v.dose||null, p_freq:v.freq||null, p_inicio:v.inicio||null, p_fim:v.fim||null, p_medico:v.medico||null, p_obs:v.obs||null })
+  },
+  doses: {
+    title: 'Editar dose registrada',
+    table: 'doses',
+    addRpc: 'leonardo_add_dose',
+    fields: [
+      { key:'data', label:'Data', type:'date', required:true },
+      { key:'hora', label:'Hora', type:'time', required:true },
+      { key:'medId', label:'Medicamento', type:'select', required:true, options:() => db.medicacao.map(m => [m.id, m.nome + (m.dose ? ' (' + m.dose + ')' : '')]) },
+      { key:'obs', label:'Observação', type:'text', full:true },
+    ],
+    toParams: v => ({ p_data:v.data, p_hora:v.hora, p_med_id:parseInt(v.medId), p_obs:v.obs||null })
+  },
+  atividade: {
+    title: 'Editar atividade física',
+    table: 'atividade',
+    addRpc: 'leonardo_add_atividade',
+    fields: [
+      { key:'data', label:'Data', type:'date', required:true },
+      { key:'tipo', label:'Tipo', type:'text', required:true },
+      { key:'duracao', label:'Duração (min)', type:'number', step:'1', required:true },
+      { key:'intens', label:'Intensidade', type:'text' },
+      { key:'obs', label:'Observação', type:'text', full:true },
+    ],
+    toParams: v => ({ p_data:v.data, p_tipo:v.tipo, p_duracao:parseInt(v.duracao), p_intens:v.intens||null, p_obs:v.obs||null })
+  },
+  exames: {
+    title: 'Editar exame laboratorial',
+    table: 'exames',
+    addRpc: 'leonardo_add_exame',
+    fields: [
+      { key:'data', label:'Data da coleta', type:'date', required:true },
+      { key:'categoria', label:'Categoria', type:'text', required:true },
+      { key:'nome', label:'Exame', type:'text', required:true },
+      { key:'valor', label:'Valor', type:'text', required:true },
+      { key:'unidade', label:'Unidade', type:'text' },
+      { key:'ref', label:'Referência', type:'text' },
+      { key:'status', label:'Status', type:'select', options:[['normal','Normal'],['atencao','Atenção'],['alterado','Alterado']] },
+      { key:'obs', label:'Observação', type:'text', full:true },
+    ],
+    toParams: v => ({ p_data:v.data, p_categoria:v.categoria, p_nome:v.nome, p_valor:v.valor, p_unidade:v.unidade||null, p_ref:v.ref||null, p_status:v.status||'normal', p_obs:v.obs||null })
+  }
+};
+
+let _editingEntity = null;
+let _editingId = null;
+
+function findRecord(entity, id) {
+  const list = db[entity] || [];
+  return list.find(r => r.id == id);
+}
+
+function openEditModal(entity, id) {
+  const schema = EDIT_SCHEMA[entity];
+  const record = findRecord(entity, id);
+  if (!schema || !record) { alert('Registro não encontrado.'); return; }
+  _editingEntity = entity;
+  _editingId = id;
+  document.getElementById('editModalTitle').textContent = schema.title;
+  const grid = document.getElementById('editModalGrid');
+  grid.innerHTML = '';
+  schema.fields.forEach(f => {
+    const wrap = document.createElement('div');
+    if (f.full) wrap.className = 'full';
+    const lab = document.createElement('label');
+    lab.textContent = f.label + (f.required ? ' *' : '');
+    wrap.appendChild(lab);
+    let input;
+    if (f.type === 'select') {
+      input = document.createElement('select');
+      const opts = typeof f.options === 'function' ? f.options() : f.options;
+      opts.forEach(o => {
+        const op = document.createElement('option');
+        op.value = o[0]; op.textContent = o[1];
+        input.appendChild(op);
+      });
+    } else {
+      input = document.createElement('input');
+      input.type = f.type;
+      if (f.step) input.step = f.step;
+    }
+    input.id = 'editField_' + f.key;
+    input.name = f.key;
+    if (f.required) input.required = true;
+    // Preenche valor
+    let v = record[f.key];
+    if (f.type === 'date' && v) v = String(v).slice(0,10);
+    if (f.type === 'time' && v) v = String(v).slice(0,5);
+    if (v !== null && v !== undefined) input.value = v;
+    wrap.appendChild(input);
+    grid.appendChild(wrap);
+  });
+  document.getElementById('editModalOverlay').classList.add('active');
+}
+
+function closeEditModal() {
+  document.getElementById('editModalOverlay').classList.remove('active');
+  _editingEntity = null;
+  _editingId = null;
+}
+
+async function saveEditModal(ev) {
+  if (ev) ev.preventDefault();
+  if (!_editingEntity || _editingId == null) return;
+  const schema = EDIT_SCHEMA[_editingEntity];
+  const code = await requireEditCode();
+  if (!code) return;
+  const values = {};
+  schema.fields.forEach(f => {
+    const el = document.getElementById('editField_' + f.key);
+    values[f.key] = el ? el.value : '';
+  });
+  // Validação básica
+  for (const f of schema.fields) {
+    if (f.required && (values[f.key] === '' || values[f.key] == null)) {
+      alert('Preencha o campo: ' + f.label);
+      return;
+    }
+  }
+  try {
+    // 1) remove registro antigo
+    const { error: delErr } = await SUPA.rpc('leonardo_delete', { p_code: code, p_table: schema.table, p_id: _editingId });
+    if (delErr) throw delErr;
+    // 2) insere registro atualizado
+    const params = Object.assign({ p_code: code }, schema.toParams(values));
+    const { error: addErr } = await SUPA.rpc(schema.addRpc, params);
+    if (addErr) throw addErr;
+    closeEditModal();
+    await reloadFromServer();
+  } catch (e) {
+    alert('Erro ao editar: ' + (e.message || e));
+  }
+}
+
 // v4 build (supabase)
 
 // PWA: register service worker
@@ -1767,5 +2004,20 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.log('SW registration failed:', err));
 }
 </script>
+
+<!-- Modal de edição de registros -->
+<div class="modal-overlay" id="editModalOverlay" onclick="if(event.target===this) closeEditModal()">
+  <div class="modal-box">
+    <h3 id="editModalTitle">Editar registro</h3>
+    <p class="modal-sub">Ajuste os campos abaixo e clique em Salvar.</p>
+    <form onsubmit="saveEditModal(event)">
+      <div class="modal-grid" id="editModalGrid"></div>
+      <div class="modal-actions">
+        <button type="button" class="modal-cancel" onclick="closeEditModal()">Cancelar</button>
+        <button type="submit" class="modal-save">Salvar alterações</button>
+      </div>
+    </form>
+  </div>
+</div>
 </body>
 </html>
