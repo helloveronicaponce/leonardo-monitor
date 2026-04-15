@@ -364,9 +364,11 @@
   <section id="dashboard" class="panel active">
     <div class="checkin-card" id="checkinCard">
       <h2>⚡ Check-in rápido de hoje</h2>
-      <p class="checkin-sub">Preencha só o que quiser registrar agora. Todos os campos são opcionais — registre um, vários ou todos.</p>
+      <p class="checkin-sub">Preencha só o que quiser registrar. Todos os campos são opcionais. A data vem como hoje, mas você pode alterar para registros retroativos.</p>
       <form onsubmit="addCheckin(event)" id="checkinForm">
         <div class="checkin-fields">
+          <div class="field"><label>Data</label><input type="date" id="ckData"></div>
+          <div class="field"><label>Hora</label><input type="time" id="ckHora"></div>
           <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="ckPeso" placeholder="Ex: 32.5"></div>
           <div class="field"><label>Sistólica</label><input type="number" step="1" min="0" id="ckSis" placeholder="Ex: 105"></div>
           <div class="field"><label>Diastólica</label><input type="number" step="1" min="0" id="ckDia" placeholder="Ex: 65"></div>
@@ -976,8 +978,8 @@ async function addCheckin(ev) {
   const gliVal = document.getElementById('ckGli').value;
   const gliContexto = document.getElementById('ckGliContexto').value;
   if (!pesoVal && !sisVal && !diaVal && !fcVal && !gliVal) { alert('Preencha pelo menos um campo.'); return; }
-  const hoje = new Date().toISOString().slice(0, 10);
-  const agora = new Date().toTimeString().slice(0, 5);
+  const hoje = document.getElementById('ckData').value || new Date().toISOString().slice(0, 10);
+  const agora = document.getElementById('ckHora').value || new Date().toTimeString().slice(0, 5);
   const msgs = [];
   try {
     // Salvar peso (como antropometria só com peso)
@@ -1022,6 +1024,7 @@ async function addCheckin(ev) {
       msgs.push('Glicemia ' + gliVal + ' mg/dL');
     }
     ev.target.reset();
+    setDefaultDates();
     const okEl = document.getElementById('checkinOk');
     okEl.textContent = '✅ Registrado: ' + msgs.join(' · ') + ' — ' + hoje;
     okEl.style.display = 'block';
@@ -1774,11 +1777,11 @@ function renderAll() {
 function setDefaultDates() {
   const today = new Date().toISOString().slice(0,10);
   const now = new Date().toTimeString().slice(0,5);
-  ['antData','gliData','paData','doseData','ativData'].forEach(id => {
+  ['antData','gliData','paData','doseData','ativData','ckData'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.value) el.value = today;
   });
-  ['gliHora','paHora','doseHora'].forEach(id => {
+  ['gliHora','paHora','doseHora','ckHora'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.value) el.value = now;
   });
